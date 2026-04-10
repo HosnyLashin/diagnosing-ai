@@ -1,29 +1,17 @@
-# Web framework
 flask
 flask-cors
 flask-jwt-extended
-flask-mail
-
-# Database
+bcrypt
 sqlalchemy
 psycopg2-binary
-
-# Auth
-bcrypt
-
-# Server
-gunicorn
-
-# Env
-python-dotenv
-
-# AI / ML
-torch --index-url https://download.pytorch.org/whl/cpu
-transformers
-scikit-learn
-numpy
 pandas
-
-# Scraper (not used on Render but needed for local)
+numpy
+scikit-learn
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.2.0+cpu
+transformers
 requests
 beautifulsoup4
+python-dotenv
+gunicorn
+resend
