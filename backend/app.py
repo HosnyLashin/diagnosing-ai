@@ -426,9 +426,10 @@ def server_error(_):
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# STARTUP
+# STARTUP — runs on both gunicorn and direct python execution
 # ══════════════════════════════════════════════════════════════════════════════
 
+ai_engine.initialise()
+
 if __name__ == "__main__":
-    ai_engine.initialise()
     app.run(debug=False, port=5000)
