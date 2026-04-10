@@ -426,10 +426,17 @@ def server_error(_):
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# STARTUP — runs on both gunicorn and direct python execution
+# STARTUP — lazy init so gunicorn doesn't time out on worker boot
 # ══════════════════════════════════════════════════════════════════════════════
 
-ai_engine.initialise()
+_initialised = False
+
+@app.before_request
+def initialise_once():
+    global _initialised
+    if not _initialised:
+        _initialised = True
+        ai_engine.initialise()
 
 if __name__ == "__main__":
     app.run(debug=False, port=5000)
