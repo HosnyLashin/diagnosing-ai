@@ -1,0 +1,75 @@
+/* src/styles/history.css */
+.history-page {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 40px 24px;
+}
+
+.history-empty {
+  text-align: center;
+  padding: 60px 24px;
+  color: var(--text-muted);
+}
+
+.history-list { display: flex; flex-direction: column; gap: 16px; }
+
+.history-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px 24px;
+  transition: border-color 0.2s;
+}
+
+.history-card.confirmed { border-color: rgba(52,211,153,0.3); }
+
+.hcard-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.hcard-disease {
+  font-family: 'Syne', sans-serif;
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
+.hcard-date { font-size: 0.82rem; color: var(--text-muted); }
+
+.hcard-detail {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+  line-height: 1.5;
+}
+
+.hcard-label { color: var(--text); font-weight: 500; }
+
+.hcard-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.hcard-status { font-size: 0.82rem; font-weight: 500; }
+.status-yes { color: var(--success); }
+.status-no  { color: var(--text-muted); }
+
+.confirm-btn {
+  border-radius: 8px;
+  padding: 7px 16px;
+  font-size: 0.85rem;
+  border: 1px solid;
+  background: transparent;
+  transition: all 0.2s;
+}
+
+.confirm-btn.yes { border-color: var(--success); color: var(--success); }
+.confirm-btn.yes:hover { background: rgba(52,211,153,0.1); }
+.confirm-btn.no  { border-color: var(--border);  color: var(--text-muted); }
+.confirm-btn.no:hover  { border-color: var(--danger); color: var(--danger); }

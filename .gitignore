@@ -1,0 +1,25 @@
+# Environment files — never upload these
+.env
+token.env
+*.env
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+*.egg-info/
+
+# Node
+node_modules/
+frontend/build/
+
+# Model cache
+*.bin
+*.safetensors
+
+# IDE
+.idea/
+.vscode/
+
+# Logs
+*.log
