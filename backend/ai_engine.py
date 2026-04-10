@@ -35,7 +35,7 @@ _all_columns = None
 def get_engine():
     global _engine
     if _engine is None:
-        _engine = create_engine(os.getenv("DATABASE_URL"))
+        _engine = create_engine(os.getenv("DB_CONNECTION"))
     return _engine
 
 
@@ -295,14 +295,16 @@ def save_diagnosis(patient_id: int, symptoms: list[str], tests: list[str],
 # STARTUP
 # ══════════════════════════════════════════════════════════════════════════════
 
-def initialise():
+def _ensure_initialised():
     global _ner, _resolver, _model, _all_columns
-
-    print("🔄 Loading NER model...")
-    _ner = load_ner_pipeline()
+    if _model is not None:
+        return
 
     print("🔄 Training RF model...")
     _model, _all_columns = build_and_train()
+
+    print("🔄 Loading NER model...")
+    _ner = load_ner_pipeline()
 
     print("🔄 Loading embedding resolver...")
     _resolver = SymptomResolver()
@@ -310,3 +312,7 @@ def initialise():
     _resolver.build_test_index(get_all_tests())
 
     print("✅ AI engine ready.")
+
+
+def initialise():
+    _ensure_initialised()
