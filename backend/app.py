@@ -27,7 +27,10 @@ app = Flask(__name__)
 app.config["JWT_SECRET_KEY"]           = os.getenv("JWT_SECRET_KEY", "change-me")
 app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(days=7)
 
-CORS(app, resources={r"/api/*": {"origins": "*"}})
+CORS(app, supports_credentials=True, resources={r"/api/*": {"origins": [
+    "https://diagnosing-hvc4aj4kp-hosnylashins-projects.vercel.app",
+    "http://localhost:3000",
+]}})
 JWTManager(app)
 
 resend.api_key   = os.getenv("RESEND_API_KEY", "")
