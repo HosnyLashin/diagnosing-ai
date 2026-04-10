@@ -3,6 +3,7 @@ app.py - Single file Flask backend, no blueprints, uses resend for email
 """
 
 import os
+import re
 import secrets
 from datetime import datetime, timedelta, timezone
 
