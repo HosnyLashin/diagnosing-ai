@@ -17,9 +17,10 @@ from dotenv import load_dotenv
 from flask import Flask, jsonify
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager
+from flask_mail import Mail
 
 import ai_engine
-from routes.auth import auth_bp
+from routes.auth import auth_bp, mail
 from routes.diagnosis import diag_bp
 
 load_dotenv()
@@ -29,12 +30,21 @@ def create_app() -> Flask:
     app = Flask(__name__)
 
     # ── config ────────────────────────────────────────────────────────────────
-    app.config["JWT_SECRET_KEY"]        = os.getenv("JWT_SECRET_KEY", "change-me-in-production")
+    app.config["JWT_SECRET_KEY"]           = os.getenv("JWT_SECRET_KEY", "change-me-in-production")
     app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(days=7)
+
+    # ── mail ──────────────────────────────────────────────────────────────────
+    app.config["MAIL_SERVER"]         = os.getenv("MAIL_SERVER", "smtp.gmail.com")
+    app.config["MAIL_PORT"]           = int(os.getenv("MAIL_PORT", 587))
+    app.config["MAIL_USE_TLS"]        = True
+    app.config["MAIL_USERNAME"]       = os.getenv("MAIL_USERNAME")
+    app.config["MAIL_PASSWORD"]       = os.getenv("MAIL_PASSWORD")
+    app.config["MAIL_DEFAULT_SENDER"] = os.getenv("MAIL_USERNAME")
 
     # ── extensions ────────────────────────────────────────────────────────────
     CORS(app, resources={r"/api/*": {"origins": "*"}})   # tighten origins in production
     JWTManager(app)
+    mail.init_app(app)
 
     # ── blueprints ────────────────────────────────────────────────────────────
     app.register_blueprint(auth_bp, url_prefix="/api/auth")

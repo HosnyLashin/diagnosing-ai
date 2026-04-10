@@ -4,6 +4,7 @@ ai_engine.py
 All AI logic — NER, embedding resolver, dataset builder, RF model.
 Imported by Flask routes. Stateful objects (model, resolver) are held as
 module-level singletons so they are loaded once at startup.
+Uses PostgreSQL-compatible SQL syntax.
 """
 
 import os
@@ -24,17 +25,17 @@ from transformers import (
 )
 
 # ── singletons ────────────────────────────────────────────────────────────────
-_engine       = None
-_ner          = None
-_resolver     = None
-_model        = None
-_all_columns  = None
+_engine      = None
+_ner         = None
+_resolver    = None
+_model       = None
+_all_columns = None
 
 
 def get_engine():
     global _engine
     if _engine is None:
-        _engine = create_engine(os.getenv("DB_CONNECTION"))
+        _engine = create_engine(os.getenv("DATABASE_URL"))
     return _engine
 
 
@@ -131,7 +132,7 @@ class SymptomResolver:
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# HELPERS
+# HELPERS — PostgreSQL compatible
 # ══════════════════════════════════════════════════════════════════════════════
 
 def _normalise(s: str) -> str:
@@ -144,8 +145,9 @@ def _normalise(s: str) -> str:
 
 def _get_or_insert_disease_id(conn, disease: str) -> int:
     conn.execute(text("""
-        IF NOT EXISTS (SELECT 1 FROM diseases WHERE DiseaseName = :d)
-        INSERT INTO diseases (DiseaseName) VALUES (:d)
+        INSERT INTO diseases (DiseaseName)
+        VALUES (:d)
+        ON CONFLICT (DiseaseName) DO NOTHING
     """), {"d": disease})
     return conn.execute(
         text("SELECT DiseaseID FROM diseases WHERE DiseaseName = :d"), {"d": disease}
@@ -154,8 +156,9 @@ def _get_or_insert_disease_id(conn, disease: str) -> int:
 
 def _get_or_insert_symptom(conn, symptom: str) -> int:
     conn.execute(text("""
-        IF NOT EXISTS (SELECT 1 FROM symptoms WHERE SymptomName = :s)
-        INSERT INTO symptoms (SymptomName) VALUES (:s)
+        INSERT INTO symptoms (SymptomName)
+        VALUES (:s)
+        ON CONFLICT (SymptomName) DO NOTHING
     """), {"s": symptom})
     return conn.execute(
         text("SELECT SymptomID FROM symptoms WHERE SymptomName = :s"), {"s": symptom}
@@ -164,14 +167,13 @@ def _get_or_insert_symptom(conn, symptom: str) -> int:
 
 def _get_or_insert_test(conn, test: str) -> int:
     conn.execute(text("""
-        IF NOT EXISTS (SELECT 1 FROM tests WHERE TestName = :t)
-        INSERT INTO tests (TestName) VALUES (:t)
+        INSERT INTO tests (TestName)
+        VALUES (:t)
+        ON CONFLICT (TestName) DO NOTHING
     """), {"t": test})
     return conn.execute(
         text("SELECT TestID FROM tests WHERE TestName = :t"), {"t": test}
     ).fetchone()[0]
-
-
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -233,7 +235,6 @@ def get_all_tests() -> list[str]:
 # ══════════════════════════════════════════════════════════════════════════════
 
 def predict_from_symptoms(symptom_list: list[str]) -> dict:
-    """Takes a list of canonical DB symptom names, returns prediction."""
     global _model, _all_columns
     s = set(symptom_list)
     vec = pd.DataFrame([[int(col in s) for col in _all_columns]], columns=_all_columns)
@@ -248,12 +249,11 @@ def predict_from_symptoms(symptom_list: list[str]) -> dict:
 
 
 def predict_from_note(note: str) -> dict:
-    """Full NER → resolve → predict pipeline for a clinical note."""
     global _ner, _resolver
-    entities   = extract_entities(note, _ner)
-    symptoms   = _resolver.resolve_symptoms([e["text"] for e in entities["symptoms"]])
-    tests      = _resolver.resolve_tests([e["text"] for e in entities["tests"]])
-    result     = predict_from_symptoms(symptoms)
+    entities = extract_entities(note, _ner)
+    symptoms = _resolver.resolve_symptoms([e["text"] for e in entities["symptoms"]])
+    tests    = _resolver.resolve_tests([e["text"] for e in entities["tests"]])
+    result   = predict_from_symptoms(symptoms)
     result["resolved_symptoms"] = symptoms
     result["resolved_tests"]    = tests
     result["raw_entities"]      = entities
@@ -271,30 +271,31 @@ def save_diagnosis(patient_id: int, symptoms: list[str], tests: list[str],
         for symptom in symptoms:
             sid = _get_or_insert_symptom(conn, symptom)
             conn.execute(text("""
-                IF NOT EXISTS (SELECT 1 FROM patient_symptoms WHERE PatientID=:p AND SymptomID=:s)
-                INSERT INTO patient_symptoms (PatientID, SymptomID) VALUES (:p, :s)
+                INSERT INTO patient_symptoms (PatientID, SymptomID)
+                VALUES (:p, :s)
+                ON CONFLICT (PatientID, SymptomID) DO NOTHING
             """), {"p": patient_id, "s": sid})
 
         for test in tests:
             tid = _get_or_insert_test(conn, test)
             conn.execute(text("""
-                IF NOT EXISTS (SELECT 1 FROM patient_tests WHERE PatientID=:p AND TestID=:t)
-                INSERT INTO patient_tests (PatientID, TestID) VALUES (:p, :t)
+                INSERT INTO patient_tests (PatientID, TestID)
+                VALUES (:p, :t)
+                ON CONFLICT (PatientID, TestID) DO NOTHING
             """), {"p": patient_id, "t": tid})
 
         conn.execute(
             text("INSERT INTO diagnoses (PatientID, PredictedDisease, Confirmed) VALUES (:p, :d, :c)"),
-            {"p": patient_id, "d": prediction, "c": 1 if confirmed else 0}
+            {"p": patient_id, "d": prediction, "c": confirmed}
         )
         conn.commit()
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# STARTUP — called once by Flask app factory
+# STARTUP
 # ══════════════════════════════════════════════════════════════════════════════
 
 def initialise():
-    """Load all models and build indexes. Call once at Flask startup."""
     global _ner, _resolver, _model, _all_columns
 
     print("🔄 Loading NER model...")

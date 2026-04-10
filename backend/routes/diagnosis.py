@@ -1,11 +1,5 @@
 """
-routes/diagnosis.py
-===================
-POST /api/diagnosis/symptoms   — predict from symptom list (patient checklist)
-POST /api/diagnosis/note       — predict from free-text clinical note (NER)
-GET  /api/diagnosis/history    — patient's own diagnosis history
-GET  /api/diagnosis/symptoms   — list all available symptoms for checklist
-PATCH /api/diagnosis/<id>/confirm — mark a diagnosis as confirmed/rejected
+routes/diagnosis.py — PostgreSQL compatible
 """
 
 from flask import Blueprint, jsonify, request
@@ -24,7 +18,6 @@ def _get_conn():
 @diag_bp.get("/symptoms")
 @jwt_required()
 def list_symptoms():
-    """Return all symptom names for the frontend checklist."""
     with _get_conn() as conn:
         symptoms = [
             r[0] for r in conn.execute(text("SELECT SymptomName FROM symptoms ORDER BY SymptomName")).fetchall()
@@ -35,10 +28,6 @@ def list_symptoms():
 @diag_bp.post("/symptoms")
 @jwt_required()
 def predict_symptoms():
-    """
-    Patient selects symptoms from checklist.
-    Body: { "symptoms": ["chest_pain", "shortness_of_breath", ...], "confirmed": true/false }
-    """
     patient_id = int(get_jwt_identity())
     data       = request.get_json()
     symptoms   = data.get("symptoms", [])
@@ -63,10 +52,6 @@ def predict_symptoms():
 @diag_bp.post("/note")
 @jwt_required()
 def predict_note():
-    """
-    Submit a free-text clinical note for NER-based prediction.
-    Body: { "note": "Patient c/o chest pain and SOB x3d..." }
-    """
     patient_id = int(get_jwt_identity())
     data       = request.get_json()
     note       = data.get("note", "").strip()
@@ -76,7 +61,6 @@ def predict_note():
 
     try:
         result = ai_engine.predict_from_note(note)
-
         if not result["resolved_symptoms"]:
             return jsonify({"error": "No recognisable symptoms found in the note."}), 422
 
@@ -85,7 +69,7 @@ def predict_note():
             symptoms=result["resolved_symptoms"],
             tests=result["resolved_tests"],
             prediction=result["prediction"],
-            confirmed=False,   # confirmation comes separately
+            confirmed=False,
         )
         return jsonify({
             "prediction":        result["prediction"],
@@ -100,7 +84,6 @@ def predict_note():
 @diag_bp.get("/history")
 @jwt_required()
 def history():
-    """Return the logged-in patient's full diagnosis history."""
     patient_id = int(get_jwt_identity())
     try:
         with _get_conn() as conn:
@@ -110,8 +93,8 @@ def history():
                     d.PredictedDisease,
                     d.Confirmed,
                     d.CreatedAt,
-                    STRING_AGG(s.SymptomName, ', ') AS Symptoms,
-                    STRING_AGG(t.TestName,    ', ') AS Tests
+                    STRING_AGG(DISTINCT s.SymptomName::text, ', ') AS Symptoms,
+                    STRING_AGG(DISTINCT t.TestName::text,    ', ') AS Tests
                 FROM diagnoses d
                 LEFT JOIN patient_symptoms ps ON d.PatientID = ps.PatientID
                 LEFT JOIN symptoms s          ON ps.SymptomID = s.SymptomID
@@ -141,14 +124,12 @@ def history():
 @diag_bp.patch("/<int:diagnosis_id>/confirm")
 @jwt_required()
 def confirm_diagnosis(diagnosis_id: int):
-    """Patient confirms or rejects their diagnosis."""
     patient_id = int(get_jwt_identity())
     data       = request.get_json()
     confirmed  = data.get("confirmed", False)
 
     try:
         with _get_conn() as conn:
-            # Ensure the diagnosis belongs to this patient
             row = conn.execute(
                 text("SELECT PatientID FROM diagnoses WHERE DiagnosisID = :id"),
                 {"id": diagnosis_id}
@@ -158,7 +139,7 @@ def confirm_diagnosis(diagnosis_id: int):
 
             conn.execute(
                 text("UPDATE diagnoses SET Confirmed = :c WHERE DiagnosisID = :id"),
-                {"c": 1 if confirmed else 0, "id": diagnosis_id}
+                {"c": confirmed, "id": diagnosis_id}
             )
             conn.commit()
 

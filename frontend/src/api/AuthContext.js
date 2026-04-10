@@ -18,12 +18,9 @@ export function AuthProvider({ children }) {
     return res.data.user;
   };
 
+  // Register no longer logs in automatically — user must verify email first
   const register = async (name, email, password) => {
-    const res = await api.post("/auth/register", { name, email, password });
-    localStorage.setItem("token", res.data.token);
-    localStorage.setItem("user", JSON.stringify(res.data.user));
-    setUser(res.data.user);
-    return res.data.user;
+    await api.post("/auth/register", { name, email, password });
   };
 
   const logout = () => {
