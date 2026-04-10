@@ -21,16 +21,18 @@ from sqlalchemy import text
 
 import ai_engine
 
+ALLOWED_ORIGINS = re.compile(
+    r"^https://diagnosing.*\.vercel\.app$"
+    r"|^http://localhost:3000$"
+)
+
 load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 
 app = Flask(__name__)
 app.config["JWT_SECRET_KEY"]           = os.getenv("JWT_SECRET_KEY", "change-me")
 app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(days=7)
 
-CORS(app, supports_credentials=True, resources={r"/api/*": {"origins": [
-    "https://diagnosing-hvc4aj4kp-hosnylashins-projects.vercel.app",
-    "http://localhost:3000",
-]}})
+CORS(app, supports_credentials=True, origins=ALLOWED_ORIGINS)
 JWTManager(app)
 
 resend.api_key   = os.getenv("RESEND_API_KEY", "")
