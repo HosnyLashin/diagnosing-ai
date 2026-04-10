@@ -274,6 +274,7 @@ def me():
 @app.get("/api/diagnosis/symptoms")
 @jwt_required()
 def list_symptoms():
+    ai_engine._ensure_initialised()
     with conn() as c:
         symptoms = [
             r[0] for r in c.execute(
@@ -286,6 +287,7 @@ def list_symptoms():
 @app.post("/api/diagnosis/symptoms")
 @jwt_required()
 def predict_symptoms():
+    ai_engine._ensure_initialised()
     patient_id = int(get_jwt_identity())
     data       = request.get_json()
     symptoms   = data.get("symptoms", [])
@@ -310,6 +312,7 @@ def predict_symptoms():
 @app.post("/api/diagnosis/note")
 @jwt_required()
 def predict_note():
+    ai_engine._ensure_initialised()
     patient_id = int(get_jwt_identity())
     data       = request.get_json()
     note       = data.get("note", "").strip()
@@ -429,14 +432,9 @@ def server_error(_):
 # STARTUP — lazy init so gunicorn doesn't time out on worker boot
 # ══════════════════════════════════════════════════════════════════════════════
 
-_initialised = False
-
-@app.before_request
-def initialise_once():
-    global _initialised
-    if not _initialised:
-        _initialised = True
-        ai_engine.initialise()
+# Models load lazily only when diagnosis endpoints are called
+# Auth endpoints (register, login, verify) work immediately without models
 
 if __name__ == "__main__":
+    ai_engine.initialise()
     app.run(debug=False, port=5000)
