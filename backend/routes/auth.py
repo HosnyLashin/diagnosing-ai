@@ -4,13 +4,14 @@ routes/auth.py — PostgreSQL compatible
 
 import bcrypt
 import secrets
+import os
+import resend
 from datetime import datetime, timedelta, timezone
 
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import create_access_token, get_jwt_identity, jwt_required
-from flask_mail import Mail, Message
+from flask_mail import Mail
 from sqlalchemy import text
-import os
 
 import ai_engine
 
@@ -25,21 +26,24 @@ def _get_conn():
 
 
 def _send_verification_email(email: str, name: str, token: str):
-    """Send a verification email with a unique token link."""
+    """Send a verification email using Resend SDK."""
     base_url = os.getenv("RAILWAY_PUBLIC_DOMAIN", "yourapp.com")
     verify_url = f"https://{base_url}/api/auth/verify-email?token={token}"
-    msg = Message(
-        subject="Verify your email address",
-        recipients=[email],
-        html=f"""
+
+    resend.api_key = os.getenv("RESEND_API_KEY")
+
+    resend.Emails.send({
+        "from": "onboarding@resend.dev",
+        "to": email,
+        "subject": "Verify your email address",
+        "html": f"""
             <p>Hi {name},</p>
             <p>Thank you for registering. Please verify your email address by clicking the link below:</p>
             <p><a href="{verify_url}">{verify_url}</a></p>
             <p>This link will expire in {TOKEN_EXPIRY_HOURS} hours.</p>
             <p>If you did not create an account, you can ignore this email.</p>
         """,
-    )
-    mail.send(msg)
+    })
 
 
 def _issue_verification_token(conn, patient_id: int) -> str:
