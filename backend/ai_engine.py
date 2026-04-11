@@ -296,6 +296,14 @@ def save_diagnosis(patient_id: int, symptoms: list[str], tests: list[str],
 # ══════════════════════════════════════════════════════════════════════════════
 
 def _ensure_initialised():
+    global _model
+    if _model is None:
+        try:
+            initialise()
+        except Exception as e:
+            raise RuntimeError(f"AI engine not ready: {e}")
+
+def _ensure_initialised():
     global _ner, _resolver, _model, _all_columns
     if _model is not None:
         return
