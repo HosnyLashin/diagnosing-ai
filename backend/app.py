@@ -45,6 +45,13 @@ TOKEN_EXPIRY_HRS = 24
 def get_conn():
     return ai_engine.get_engine().connect()
 
+def _ensure_initialised():
+    global _model
+    if _model is None:
+        try:
+            initialise()
+        except Exception as e:
+            raise RuntimeError(f"AI engine not ready: {e}")
 
 def send_verification_email(to_email: str, name: str, token: str):
     verify_url = f"{FRONTEND_URL}/verify-email?token={token}"
