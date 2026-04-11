@@ -190,7 +190,7 @@ def build_and_train():
             FROM diagnoses d
             JOIN patient_symptoms ps ON d.PatientID = ps.PatientID
             JOIN symptoms s ON ps.SymptomID = s.SymptomID
-            WHERE d.Confirmed = 1
+            WHERE d.Confirmed = TRUE
         """)).fetchall()
         scraped_rows = conn.execute(text("""
             SELECT d.DiseaseName, s.SymptomName
